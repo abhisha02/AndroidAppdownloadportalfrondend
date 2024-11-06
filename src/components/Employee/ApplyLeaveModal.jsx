@@ -1,167 +1,216 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import axios from "axios";
-import { toast } from "sonner";
+import React, { useState, useCallback, useEffect } from 'react';
+import api from '../../services/api';
 
-const ApplyLeaveModal = ({ closeModal }) => {
-  const baseURL = "http://127.0.0.1:8000";
-  const navigate = useNavigate();
+const Alert = ({ children, variant = 'error' }) => {
+  const bgColor = variant === 'error' ? 'bg-red-900/20' : 'bg-blue-900/20';
+  const borderColor = variant === 'error' ? 'border-red-900/50' : 'border-blue-900/50';
+  const textColor = variant === 'error' ? 'text-red-400' : 'text-blue-400';
+
+  return (
+    <div className={`p-3 rounded-md border ${bgColor} ${borderColor} ${textColor}`}>
+      {children}
+    </div>
+  );
+};
+
+const ApplyLeaveModal = ({ closeModal, onSuccess }) => {
+  const [leaveTypes, setLeaveTypes] = useState([]);
   const [leaveData, setLeaveData] = useState({
-    leave_type: "",
-    start_date: "",
-    end_date: "",
-    reason: "",
+    leave_type: '',
+    start_date: '',
+    end_date: '',
+    reason: '',
   });
 
-  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState(null);
+  const [validationErrors, setValidationErrors] = useState({});
+
+  useEffect(() => {
+    const fetchLeaveTypes = async () => {
+      try {
+        const { data } = await api.get('/leave/leave-types/');
+        setLeaveTypes(data);
+      } catch (error) {
+        setApiError('Failed to load leave types. Please try again.');
+      }
+    };
+
+    fetchLeaveTypes();
+  }, []);
 
   const handleInputChange = (e) => {
-    setLeaveData({ ...leaveData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setLeaveData(prev => ({ ...prev, [name]: value }));
+    setValidationErrors(prev => ({ ...prev, [name]: null }));
+    setApiError(null);
   };
 
   const submitLeaveRequest = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem("access");
+    setLoading(true);
+    setApiError(null);
+    setValidationErrors({});
 
     try {
-      const response = await axios.post(baseURL + "/leave/apply/", leaveData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.status === 201) {
-        toast.success("Leave request submitted successfully!");
-        closeModal();
-        navigate("/dashboard");
-      }
+      const { data } = await api.post('/leave/apply/', leaveData);
+      onSuccess?.(data);
+      closeModal();
     } catch (error) {
-      if (error.response && error.response.data) {
-        setErrors(error.response.data);
+      if (error.response) {
+        const { data, status } = error.response;
+        
+        if (status === 400) {
+          if (data.message) {
+            setApiError(data.message);
+          } else {
+            setValidationErrors(data);
+          }
+        } else {
+          setApiError('An unexpected error occurred. Please try again.');
+        }
+      } else if (error.request) {
+        setApiError('Network error. Please check your connection and try again.');
+      } else {
+        setApiError('An unexpected error occurred. Please try again.');
       }
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "Something went wrong!";
-      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
+  const isDateValid = useCallback(() => {
+    if (leaveData.start_date && leaveData.end_date) {
+      return new Date(leaveData.start_date) <= new Date(leaveData.end_date);
+    }
+    return true;
+  }, [leaveData.start_date, leaveData.end_date]);
+
+  const getSelectedLeaveType = () => {
+    return leaveTypes.find(type => type.value === leaveData.leave_type);
+  };
+
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-75 backdrop-blur-sm">
-      <div className="bg-gray-800 p-6 rounded-lg shadow-xl w-1/3 relative border border-gray-700">
-        {/* Close button (X) */}
+    <div className="fixed inset-0 flex items-center justify-center bg-black/75 backdrop-blur-sm">
+      <div className="bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md relative border border-gray-700">
         <button
           onClick={closeModal}
-          className="absolute top-2 right-2 text-gray-400 hover:text-gray-200 text-xl font-bold"
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-200"
         >
-          &times;
+          ×
         </button>
 
-        <h2 className="text-xl font-bold mb-4 text-gray-200">Apply for Leave</h2>
+        <h2 className="text-xl font-semibold mb-6 text-gray-200">Apply for Leave</h2>
+
+        {apiError && (
+          <Alert className="mb-4">
+            {apiError}
+          </Alert>
+        )}
+
         <form onSubmit={submitLeaveRequest} className="space-y-4">
           <div>
-            <label
-              htmlFor="leave_type"
-              className="block text-sm font-medium text-gray-300"
-            >
+            <label className="block text-sm font-medium text-gray-300 mb-1">
               Leave Type
             </label>
             <select
-              id="leave_type"
               name="leave_type"
               value={leaveData.leave_type}
               onChange={handleInputChange}
-              className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-lg shadow-sm text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select Leave Type</option>
-              <option value="annual">Annual Leave</option>
-              <option value="sick">Sick Leave</option>
-              <option value="casual">Casual Leave</option>
-              <option value="maternity">Maternity Leave</option>
+              {leaveTypes.map(type => (
+                <option key={type.value} value={type.value}>
+                  {type.label} ({type.max_days} days/year)
+                </option>
+              ))}
             </select>
-          </div>
-          {errors.leave_type && (
-            <span className="text-red-400">{errors.leave_type[0]}</span>
-          )}
-          <div>
-            <label
-              htmlFor="startdate"
-              className="block text-sm font-medium text-gray-300"
-            >
-              Start Date
-            </label>
-            <input
-              type="date"
-              id="start_date"
-              name="start_date"
-              value={leaveData.start_date}
-              onChange={handleInputChange}
-              className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-lg shadow-sm text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              min={new Date().toISOString().split("T")[0]}
-            />
-          </div>
-          {errors.startdate && (
-            <span className="text-red-400">{errors.start_date[0]}</span>
-          )}
-          <div>
-            <label
-              htmlFor="enddate"
-              className="block text-sm font-medium text-gray-300"
-            >
-              End Date
-            </label>
-            <input
-              type="date"
-              id="end_date"
-              name="end_date"
-              value={leaveData.end_date}
-              onChange={handleInputChange}
-              className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-lg shadow-sm text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              min={new Date().toISOString().split("T")[0]}
-            />
-          </div>
-          {errors.end_date && (
-            <span className="text-red-400">{errors.end_date[0]}</span>
-          )}
-          {leaveData.start_date &&
-            leaveData.end_date &&
-            leaveData.end_date < leaveData.start_date && (
-              <span className="text-red-400">
-                End date must be after start date.
-              </span>
+            {validationErrors.leave_type && (
+              <p className="mt-1 text-sm text-red-400">{validationErrors.leave_type}</p>
             )}
+          </div>
+
+          {getSelectedLeaveType() && (
+            <Alert variant="info" className="mb-4">
+              You have selected {getSelectedLeaveType().label}. Maximum {getSelectedLeaveType().max_days} days allowed per year.
+            </Alert>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Start Date
+              </label>
+              <input
+                type="date"
+                name="start_date"
+                value={leaveData.start_date}
+                onChange={handleInputChange}
+                min={new Date().toISOString().split('T')[0]}
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 focus:ring-2 focus:ring-blue-500"
+              />
+              {validationErrors.start_date && (
+                <p className="mt-1 text-sm text-red-400">{validationErrors.start_date}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                End Date
+              </label>
+              <input
+                type="date"
+                name="end_date"
+                value={leaveData.end_date}
+                onChange={handleInputChange}
+                min={leaveData.start_date || new Date().toISOString().split('T')[0]}
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 focus:ring-2 focus:ring-blue-500"
+              />
+              {validationErrors.end_date && (
+                <p className="mt-1 text-sm text-red-400">{validationErrors.end_date}</p>
+              )}
+            </div>
+          </div>
+
+          {!isDateValid() && (
+            <p className="text-sm text-red-400">End date must be after or equal to start date.</p>
+          )}
+
           <div>
-            <label
-              htmlFor="reason"
-              className="block text-sm font-medium text-gray-300"
-            >
+            <label className="block text-sm font-medium text-gray-300 mb-1">
               Reason
             </label>
             <textarea
-              id="reason"
               name="reason"
               value={leaveData.reason}
               onChange={handleInputChange}
-              className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-lg shadow-sm text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              rows="3"
+              className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 focus:ring-2 focus:ring-blue-500"
             />
+            {validationErrors.reason && (
+              <p className="mt-1 text-sm text-red-400">{validationErrors.reason}</p>
+            )}
           </div>
-          {errors.reason && (
-            <span className="text-red-400">{errors.reason[0]}</span>
-          )}
-          <button
-            type="submit"
-            className="w-full py-3 px-4 bg-indigo-600 text-gray-200 rounded-lg hover:bg-indigo-700 transition duration-300"
-          >
-            Submit Leave Request
-          </button>
-          <button
-            type="button"
-            onClick={closeModal}
-            className="w-full py-3 px-4 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 transition duration-300 border border-gray-600"
-          >
-            Cancel
-          </button>
+
+          <div className="flex gap-3 mt-6">
+            <button
+              type="submit"
+              disabled={loading || !isDateValid()}
+              className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 
+                       disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {loading ? 'Submitting...' : 'Submit Request'}
+            </button>
+            <button
+              type="button"
+              onClick={closeModal}
+              className="flex-1 py-2 px-4 bg-gray-700 text-gray-200 rounded-md hover:bg-gray-600 
+                       border border-gray-600 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
         </form>
       </div>
     </div>

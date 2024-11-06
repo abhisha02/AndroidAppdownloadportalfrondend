@@ -1,24 +1,20 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import { toast } from "sonner";
+import api from '../../services/api';
 
 const LeaveHistory = () => {
   const [leaveHistory, setLeaveHistory] = useState([]);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [selectedLeaveId, setSelectedLeaveId] = useState(null);
-  const baseURL = "http://127.0.0.1:8000";
+  const [loading, setLoading] = useState(false);
 
   const fetchLeaveHistory = async () => {
     try {
-      const token = localStorage.getItem("access");
-      const response = await axios.get(baseURL + "/leave/history/", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      setLeaveHistory(response.data);
+      const { data } = await api.get('/leave/history/');
+      setLeaveHistory(data);
     } catch (error) {
       console.error("Error fetching leave history:", error);
+      toast.error("Failed to fetch leave history. Please try again.");
     }
   };
 
@@ -32,24 +28,21 @@ const LeaveHistory = () => {
   };
 
   const handleCancel = async () => {
+    if (loading) return;
+    
+    setLoading(true);
     try {
-      const token = localStorage.getItem("access");
-      const response = await axios.patch(
-        baseURL + "/leave/cancel-leave/",
-        { id: selectedLeaveId },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await api.patch('/leave/cancel-leave/', { id: selectedLeaveId });
       if (response.status === 200) {
-        fetchLeaveHistory();
-        toast.success("Leave Cancelled Successfully");
+        await fetchLeaveHistory();
+        toast.success("Leave cancelled successfully");
         setShowConfirmDialog(false);
       }
     } catch (error) {
-      console.error("Error Cancelling leave:", error);
+      console.error("Error cancelling leave:", error);
+      toast.error("Failed to cancel leave. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -58,7 +51,7 @@ const LeaveHistory = () => {
       <h2 className="text-2xl font-bold mb-6 text-center text-gray-200">
         Leave Request History
       </h2>
-      <div className="overflow-auto w-full max-w-5xl max-h-[500px] rounded-lg border border-gray-700">
+      <div className="overflow-auto w-full max-w-6xl max-h-[500px] rounded-lg border border-gray-700">
         <table className="min-w-full table-auto border-collapse">
           <thead className="bg-gray-900 sticky top-0">
             <tr>
@@ -70,6 +63,9 @@ const LeaveHistory = () => {
               </th>
               <th className="px-4 py-3 border-b border-gray-700 text-gray-300 font-semibold">
                 End Date
+              </th>
+              <th className="px-4 py-3 border-b border-gray-700 text-gray-300 font-semibold">
+                Working Days
               </th>
               <th className="px-4 py-3 border-b border-gray-700 text-gray-300 font-semibold">
                 Reason
@@ -102,6 +98,11 @@ const LeaveHistory = () => {
                   <td className="px-4 py-3 text-gray-300">
                     {new Date(leave.end_date).toLocaleDateString()}
                   </td>
+                  <td className="px-4 py-3 text-gray-300">
+                    <span className="bg-gray-700 px-2 py-1 rounded-full text-sm">
+                      {leave.working_days} {leave.working_days === 1 ? 'day' : 'days'}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-gray-300">{leave.reason}</td>
                   <td
                     className={`px-4 py-3 ${
@@ -114,7 +115,17 @@ const LeaveHistory = () => {
                         : "text-yellow-400"
                     }`}
                   >
-                    {leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
+                    <span className={`px-2 py-1 rounded-full text-sm ${
+                      leave.status === "approved"
+                        ? "bg-green-900/20"
+                        : leave.status === "rejected"
+                        ? "bg-red-900/20"
+                        : leave.status === "cancelled"
+                        ? "bg-sky-900/20"
+                        : "bg-yellow-900/20"
+                    }`}>
+                      {leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-gray-300">
                     {new Date(leave.submission_date).toLocaleString()}
@@ -135,7 +146,7 @@ const LeaveHistory = () => {
             ) : (
               <tr>
                 <td
-                  colSpan="7"
+                  colSpan="8"
                   className="px-4 py-3 text-center text-gray-400"
                 >
                   No leave history found.
@@ -160,14 +171,16 @@ const LeaveHistory = () => {
               <button
                 onClick={() => setShowConfirmDialog(false)}
                 className="px-4 py-2 text-gray-300 hover:bg-gray-700 rounded transition duration-200 border border-gray-600"
+                disabled={loading}
               >
                 No, Keep it
               </button>
               <button
                 onClick={handleCancel}
-                className="px-4 py-2 bg-red-600 text-gray-200 rounded hover:bg-red-700 transition duration-200"
+                className="px-4 py-2 bg-red-600 text-gray-200 rounded hover:bg-red-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading}
               >
-                Yes, Cancel Leave
+                {loading ? "Cancelling..." : "Yes, Cancel Leave"}
               </button>
             </div>
           </div>

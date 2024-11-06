@@ -10,12 +10,18 @@ import ManagerLeaveReport from './components/Manager/ManagerReportPage';
 import LeaveHistory from './components/Employee/HistoryModal';
 import ManagerLeaveHistory from './components/Manager/LeaveHistory';
 import PublicRoute from './utils/PublicRoute';
+import {Helmet} from "react-helmet";
 
 
 
 function App() {
   return (
     <Router>
+       <Helmet>
+        <meta charSet="utf-8" />
+        <title>DoorStepPro</title>
+        <link rel="canonical" href="http://mysite.com/example" />
+      </Helmet>
             <Routes>
             <Route path="/register" element={<PublicRoute><Register/></PublicRoute>} />
             <Route path="/login" element={<PublicRoute><Login/></PublicRoute>}/>
