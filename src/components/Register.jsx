@@ -1,11 +1,9 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
+import api from '../services/api';
 
 const Register = () => {
-  const baseURL = "http://127.0.0.1:8000/api";
-
   const [formData, setFormData] = useState({
     email: "",
     first_name: "",
@@ -20,7 +18,6 @@ const Register = () => {
 
   const { email, first_name, last_name, password, password2, is_manager } = formData;
 
-  // Validation and handlers remain the same
   const validateForm = () => {
     const newErrors = {};
     
@@ -75,14 +72,6 @@ const Register = () => {
     }
 
     try {
-      const config = {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        withCredentials: true
-      };
-
       const submitData = {
         email: email.trim().toLowerCase(),
         first_name: first_name.trim(),
@@ -92,11 +81,7 @@ const Register = () => {
         is_manager: is_manager
       };
 
-      const response = await axios.post(
-        `${baseURL}/register/`, 
-        submitData,
-        config
-      );
+      const { data } = await api.post('/api/register/', submitData);
       
       toast.success("Registration successful! Redirecting to login...");
       setTimeout(() => {
@@ -281,7 +266,6 @@ const Register = () => {
           </p>
         </form>
       </div>
-      <Toaster position="top-right" />
     </div>
   );
 };

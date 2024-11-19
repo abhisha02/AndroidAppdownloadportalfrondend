@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
-import { Toaster, toast } from 'sonner';
+import { toast } from 'sonner';
 import { useDispatch } from 'react-redux';
 import { setUserAuthentication } from '../features/authenticationSlice';
+import api from '../services/api';
 
 const Login = () => {
-    const baseURL = "http://127.0.0.1:8000/";
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -29,10 +28,10 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const response = await axios.post(baseURL+'/api/login/', formData);
-            const { access, refresh, user_id, email, first_name, last_name, is_manager } = response.data;
+            const { data } = await api.post('/api/login/', formData);
+            const { access, refresh, user_id, email, first_name, last_name, is_manager } = data;
     
-            localStorage.setItem('tokens', JSON.stringify(response.data));
+            localStorage.setItem('tokens', JSON.stringify(data));
             localStorage.setItem('access', access);
             localStorage.setItem('refresh', refresh);
     

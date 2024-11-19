@@ -1,24 +1,36 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import api from '../../services/api';
+import { toast } from "sonner";
 
 const DownloadLeaveReport = () => {
   const [leaveHistory, setLeaveHistory] = useState([]);
-  const baseURL ="http://127.0.0.1:8000";
 
   useEffect(() => {
     const fetchLeaveHistory = async () => {
       try {
-        const token = localStorage.getItem("access");
-        const response = await axios.get(baseURL + "/leave/history/", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        setLeaveHistory(response.data);
+        const { data } = await api.get('/leave/history/');
+        setLeaveHistory(data);
       } catch (error) {
         console.error("Error fetching leave history:", error);
+        
+        if (error.response) {
+          const serverErrors = error.response.data;
+          
+          if (typeof serverErrors === 'string') {
+            toast.error(serverErrors);
+          } else if (typeof serverErrors === 'object') {
+            Object.entries(serverErrors).forEach(([key, value]) => {
+              const errorMessage = Array.isArray(value) ? value[0] : value;
+              toast.error(`${key}: ${errorMessage}`);
+            });
+          }
+        } else if (error.request) {
+          toast.error("Unable to connect to the server. Please try again.");
+        } else {
+          toast.error("An unexpected error occurred");
+        }
       }
     };
 
