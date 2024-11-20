@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'stockimagegallerybackend.online',
+  baseURL: 'https://stockimagegallerybackend.online',
   headers: {
     'Content-Type': 'application/json',
   },
