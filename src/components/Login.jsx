@@ -12,11 +12,12 @@ const Login = () => {
     });
 
     const [error, setError] = useState('');
+    const [registrationMessage, setRegistrationMessage] = useState('');
     const navigate = useNavigate(); 
     const dispatch = useDispatch();
 
     const { email, password } = formData;
-
+    
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData({
@@ -29,7 +30,7 @@ const Login = () => {
         e.preventDefault();
         try {
             const { data } = await api.post('/api/login/', formData);
-            const { access, refresh, user_id, email, first_name, last_name, is_manager } = data;
+            const { access, refresh, user_id, email, first_name, last_name, is_admin } = data;
     
             localStorage.setItem('tokens', JSON.stringify(data));
             localStorage.setItem('access', access);
@@ -41,14 +42,14 @@ const Login = () => {
                 first_name,
                 last_name,
                 isAuthenticated: true,
-                is_manager,
+                is_admin,
             };
     
             dispatch(setUserAuthentication(userDetails));
     
             toast.success('Login successful! Redirecting...');
     
-            if (is_manager) {
+            if (is_admin) {
                 navigate('/manager/home');
             } else {
                 navigate('/dashboard');
@@ -62,6 +63,9 @@ const Login = () => {
     return (
         <div className="min-h-screen flex flex-col justify-center px-6 py-12 lg:px-8 bg-gray-900">
             <div className="sm:mx-auto sm:w-full sm:max-w-sm">
+                <h1 className="text-center text-4xl font-bold leading-9 tracking-tight text-white mb-8">
+                    Android App Download Portal
+                </h1>
                 <h2 className="mt-10 text-center text-3xl font-bold leading-9 tracking-tight text-gray-200">
                     Sign in
                 </h2>

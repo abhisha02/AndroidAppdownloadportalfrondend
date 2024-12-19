@@ -1,8 +1,6 @@
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
-import { setUserAuthentication } from "../features/authenticationSlice";
-import { Navigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
+
 
 // Function to refresh and update the user token
 const updateUserToken = async () => {
@@ -29,7 +27,7 @@ const updateUserToken = async () => {
         first_name: decoded.first_name,
         last_name: decoded.last_name,
         isAuthenticated: true,
-        is_manager: decoded.is_manager,
+        is_admin: decoded.is_admin,
         is_active: decoded.is_active,
         is_staff: decoded.is_staff,
         date_joined: decoded.date_joined,

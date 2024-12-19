@@ -10,7 +10,7 @@ const Register = () => {
     last_name: "",
     password: "",
     password2: "",
-    is_manager: false,
+    
   });
 
   const [errors, setErrors] = useState({});
@@ -78,7 +78,7 @@ const Register = () => {
         last_name: last_name.trim(),
         password: password,
         password2: password2,
-        is_manager: is_manager
+       
       };
 
       const { data } = await api.post('/api/register/', submitData);
